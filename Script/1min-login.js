@@ -1,4 +1,4 @@
-// 1min-login-standard.js - 完全標準的 TOTP 實作
+// 1min-login-correct.js - 使用正確的標準 TOTP 實作
 
 // 從參數中取得設定
 const params = new URLSearchParams($argument);
@@ -16,46 +16,41 @@ if (!email || !password) {
     $done();
 }
 
-// ===== 完全標準的 TOTP 實作 =====
+// ===== 修正版 TOTP 實作（完全按照你提供的標準版本） =====
 function generateTOTP(secret, timeOffset = 0) {
     if (!secret) return null;
 
     try {
         console.log(`🔐 開始產生 TOTP (偏移: ${timeOffset}s)...`);
 
-        // 標準 Base32 解碼
-        function base32Decode(encoded) {
+        // 標準 Base32 解碼（完全按照你的版本）
+        function base32ToBytes(base32) {
             const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-            let cleanInput = encoded.replace(/\s/g, '').replace(/=+$/, '').toUpperCase();
 
-            console.log(`📏 清理後金鑰長度: ${cleanInput.length}`);
+            // 移除空格和填充，轉大寫
+            base32 = base32.replace(/\s/g, '').replace(/=+$/, '').toUpperCase();
 
             let bits = '';
-            for (let i = 0; i < cleanInput.length; i++) {
-                const char = cleanInput[i];
-                const index = alphabet.indexOf(char);
-                if (index === -1) {
-                    throw new Error(`無效的 Base32 字元: ${char}`);
-                }
-                bits += index.toString(2).padStart(5, '0');
+            for (let i = 0; i < base32.length; i++) {
+                const val = alphabet.indexOf(base32[i]);
+                if (val === -1) throw new Error(`Invalid Base32 character: ${base32[i]}`);
+                bits += val.toString(2).padStart(5, '0');
             }
-
-            console.log(`🔢 總位元數: ${bits.length}`);
 
             const bytes = [];
-            for (let i = 0; i < bits.length - 7; i += 8) {
-                const byte = bits.substr(i, 8);
-                if (byte.length === 8) {
-                    bytes.push(parseInt(byte, 2));
-                }
+            for (let i = 0; i + 8 <= bits.length; i += 8) {
+                bytes.push(parseInt(bits.substr(i, 8), 2));
             }
 
-            console.log(`🔑 解碼後位元組數: ${bytes.length}`);
             return new Uint8Array(bytes);
         }
 
-        // 標準 SHA-1 實作（完全按照 RFC 3174）
-        function sha1Hash(data) {
+        // 簡化但正確的 SHA-1 實作
+        function sha1(data) {
+            function rotl(n, b) {
+                return (n << b) | (n >>> (32 - b));
+            }
+
             // 初始雜湊值
             let h0 = 0x67452301;
             let h1 = 0xEFCDAB89;
@@ -63,60 +58,50 @@ function generateTOTP(secret, timeOffset = 0) {
             let h3 = 0x10325476;
             let h4 = 0xC3D2E1F0;
 
-            // 左旋轉
-            function leftRotate(value, amount) {
-                return (value << amount) | (value >>> (32 - amount));
+            // 前處理
+            const ml = data.length * 8;
+            const msg = Array.from(data);
+            msg.push(0x80);
+
+            while (msg.length % 64 !== 56) {
+                msg.push(0);
             }
 
-            // 預處理
-            const originalLength = data.length;
-            const message = Array.from(data);
-
-            // 附加單一 '1' 位元
-            message.push(0x80);
-
-            // 填充到 512 位元的倍數減 64 位元
-            while ((message.length % 64) !== 56) {
-                message.push(0x00);
+            // 附加長度（64位元大端序）
+            for (let i = 0; i < 8; i++) {
+                msg.push((ml >>> ((7 - i) * 8)) & 0xff);
             }
 
-            // 附加原始長度（以位元為單位，大端序 64 位元）
-            const lengthInBits = originalLength * 8;
-            for (let i = 7; i >= 0; i--) {
-                message.push((lengthInBits >>> (i * 8)) & 0xFF);
-            }
-
-            // 處理 512 位元區塊
-            for (let chunkStart = 0; chunkStart < message.length; chunkStart += 64) {
+            // 處理每個 512 位元區塊
+            for (let i = 0; i < msg.length; i += 64) {
                 const w = new Array(80);
 
-                // 將區塊分解為 16 個 32 位元大端序字
-                for (let i = 0; i < 16; i++) {
-                    w[i] = (message[chunkStart + i * 4] << 24) |
-                           (message[chunkStart + i * 4 + 1] << 16) |
-                           (message[chunkStart + i * 4 + 2] << 8) |
-                           message[chunkStart + i * 4 + 3];
+                // 將區塊分解為 16 個 32 位元字
+                for (let j = 0; j < 16; j++) {
+                    w[j] = (msg[i + j * 4] << 24) |
+                           (msg[i + j * 4 + 1] << 16) |
+                           (msg[i + j * 4 + 2] << 8) |
+                           msg[i + j * 4 + 3];
                 }
 
                 // 擴展為 80 個字
-                for (let i = 16; i < 80; i++) {
-                    w[i] = leftRotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+                for (let j = 16; j < 80; j++) {
+                    w[j] = rotl(w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16], 1);
                 }
 
-                // 初始化雜湊值
+                // 初始化
                 let a = h0, b = h1, c = h2, d = h3, e = h4;
 
-                // 主迴圈
-                for (let i = 0; i < 80; i++) {
+                // 80 輪主迴圈
+                for (let j = 0; j < 80; j++) {
                     let f, k;
-
-                    if (i < 20) {
+                    if (j < 20) {
                         f = (b & c) | (~b & d);
                         k = 0x5A827999;
-                    } else if (i < 40) {
+                    } else if (j < 40) {
                         f = b ^ c ^ d;
                         k = 0x6ED9EBA1;
-                    } else if (i < 60) {
+                    } else if (j < 60) {
                         f = (b & c) | (b & d) | (c & d);
                         k = 0x8F1BBCDC;
                     } else {
@@ -124,118 +109,120 @@ function generateTOTP(secret, timeOffset = 0) {
                         k = 0xCA62C1D6;
                     }
 
-                    const temp = (leftRotate(a, 5) + f + e + k + w[i]) & 0xFFFFFFFF;
+                    const temp = (rotl(a, 5) + f + e + k + w[j]) & 0xffffffff;
                     e = d;
                     d = c;
-                    c = leftRotate(b, 30);
+                    c = rotl(b, 30);
                     b = a;
                     a = temp;
                 }
 
-                // 加入到雜湊值
-                h0 = (h0 + a) & 0xFFFFFFFF;
-                h1 = (h1 + b) & 0xFFFFFFFF;
-                h2 = (h2 + c) & 0xFFFFFFFF;
-                h3 = (h3 + d) & 0xFFFFFFFF;
-                h4 = (h4 + e) & 0xFFFFFFFF;
+                h0 = (h0 + a) & 0xffffffff;
+                h1 = (h1 + b) & 0xffffffff;
+                h2 = (h2 + c) & 0xffffffff;
+                h3 = (h3 + d) & 0xffffffff;
+                h4 = (h4 + e) & 0xffffffff;
             }
 
-            // 產生最終雜湊值（大端序）
-            const hash = new Uint8Array(20);
-            const hashValues = [h0, h1, h2, h3, h4];
+            // 產生最終雜湊
+            const result = new Uint8Array(20);
+            [h0, h1, h2, h3, h4].forEach((h, i) => {
+                result[i * 4] = (h >>> 24) & 0xff;
+                result[i * 4 + 1] = (h >>> 16) & 0xff;
+                result[i * 4 + 2] = (h >>> 8) & 0xff;
+                result[i * 4 + 3] = h & 0xff;
+            });
 
-            for (let i = 0; i < 5; i++) {
-                const h = hashValues[i];
-                hash[i * 4] = (h >>> 24) & 0xFF;
-                hash[i * 4 + 1] = (h >>> 16) & 0xFF;
-                hash[i * 4 + 2] = (h >>> 8) & 0xFF;
-                hash[i * 4 + 3] = h & 0xFF;
-            }
-
-            return hash;
+            return result;
         }
 
-        // 標準 HMAC-SHA1 實作
+        // HMAC-SHA1（標準實作）
         function hmacSha1(key, message) {
             const blockSize = 64;
 
-            // 如果金鑰比區塊大小長，就雜湊它
             if (key.length > blockSize) {
-                key = sha1Hash(key);
+                key = sha1(key);
             }
 
-            // 如果金鑰比區塊大小短，就用零填充
             const keyPadded = new Uint8Array(blockSize);
             keyPadded.set(key);
 
-            // 建立內部和外部填充金鑰
-            const innerKeyPad = new Uint8Array(blockSize);
-            const outerKeyPad = new Uint8Array(blockSize);
+            const ipadKey = new Uint8Array(blockSize);
+            const opadKey = new Uint8Array(blockSize);
 
             for (let i = 0; i < blockSize; i++) {
-                innerKeyPad[i] = keyPadded[i] ^ 0x36;
-                outerKeyPad[i] = keyPadded[i] ^ 0x5C;
+                ipadKey[i] = keyPadded[i] ^ 0x36;
+                opadKey[i] = keyPadded[i] ^ 0x5C;
             }
 
-            // 計算內部雜湊
+            // 內部雜湊
             const innerData = new Uint8Array(blockSize + message.length);
-            innerData.set(innerKeyPad);
+            innerData.set(ipadKey);
             innerData.set(message, blockSize);
-            const innerHash = sha1Hash(innerData);
+            const innerHash = sha1(innerData);
 
-            // 計算外部雜湊
+            // 外部雜湊
             const outerData = new Uint8Array(blockSize + innerHash.length);
-            outerData.set(outerKeyPad);
+            outerData.set(opadKey);
             outerData.set(innerHash, blockSize);
 
-            return sha1Hash(outerData);
+            return sha1(outerData);
         }
+
+        // 使用當前時間或指定時間
+        const timestamp = Math.floor(Date.now() / 1000) + timeOffset;
+        const timeStep = Math.floor(timestamp / 30);
+
+        console.log(`⏰ 時間戳: ${timestamp}`);
+        console.log(`📊 時間步: ${timeStep}`);
+        console.log(`🕒 時間: ${new Date(timestamp * 1000).toLocaleString()}`);
 
         // 解碼 Base32 金鑰
-        const key = base32Decode(secret);
+        const key = base32ToBytes(secret);
+        console.log(`🔑 金鑰長度: ${key.length} bytes`);
 
-        // 計算時間步數
-        const currentTime = Math.floor(Date.now() / 1000) + timeOffset;
-        const timeStep = Math.floor(currentTime / 30);
+        // 建立 8 bytes 的時間 counter (big-endian) - 完全按照標準版本
+        const counter = new Uint8Array(8);
+        const high = Math.floor(timeStep / 0x100000000);
+        const low = timeStep & 0xffffffff;
 
-        console.log(`⏰ 當前時間: ${new Date((currentTime) * 1000).toLocaleTimeString()}`);
-        console.log(`📊 時間步數: ${timeStep}`);
+        // 寫入高 32 位元（大端序）
+        counter[0] = (high >>> 24) & 0xff;
+        counter[1] = (high >>> 16) & 0xff;
+        counter[2] = (high >>> 8) & 0xff;
+        counter[3] = high & 0xff;
 
-        // 將時間步數轉換為 8 位元組大端序
-        const timeBytes = new Uint8Array(8);
-        for (let i = 7; i >= 0; i--) {
-            timeBytes[7 - i] = (timeStep >>> (i * 8)) & 0xFF;
-        }
+        // 寫入低 32 位元（大端序）
+        counter[4] = (low >>> 24) & 0xff;
+        counter[5] = (low >>> 16) & 0xff;
+        counter[6] = (low >>> 8) & 0xff;
+        counter[7] = low & 0xff;
 
-        console.log(`🕒 時間位元組: [${Array.from(timeBytes).map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
+        console.log(`🔢 Counter: ${Array.from(counter).map(b => b.toString(16).padStart(2, '0')).join('')}`);
 
         // 計算 HMAC-SHA1
-        const hmac = hmacSha1(key, timeBytes);
+        const hmac = hmacSha1(key, counter);
+        console.log(`🔐 HMAC: ${Array.from(hmac).map(b => b.toString(16).padStart(2, '0')).join('')}`);
 
-        console.log(`🔐 HMAC 長度: ${hmac.length}`);
-        console.log(`🔐 HMAC 前10位元組: [${Array.from(hmac.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
-        console.log(`🔐 HMAC 後10位元組: [${Array.from(hmac.slice(-10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
+        // Dynamic Truncation - 完全按照標準版本
+        const offset = hmac[hmac.length - 1] & 0x0f;
+        console.log(`📍 Offset: ${offset}`);
 
-        // 動態截取
-        const offset = hmac[hmac.length - 1] & 0x0F;
-        console.log(`📍 動態偏移: ${offset}`);
+        const code = ((hmac[offset] & 0x7f) << 24) |
+                     ((hmac[offset + 1] & 0xff) << 16) |
+                     ((hmac[offset + 2] & 0xff) << 8) |
+                     (hmac[offset + 3] & 0xff);
 
-        // 計算 TOTP 值
-        const code = ((hmac[offset] & 0x7F) << 24) |
-                     ((hmac[offset + 1] & 0xFF) << 16) |
-                     ((hmac[offset + 2] & 0xFF) << 8) |
-                     (hmac[offset + 3] & 0xFF);
-
-        console.log(`🔢 31位元整數: ${code} (0x${code.toString(16)})`);
+        console.log(`🔢 Code: ${code}`);
 
         const totp = String(code % 1000000).padStart(6, '0');
-        console.log(`🎯 最終 TOTP: ${totp}`);
+        console.log(`🎯 TOTP: ${totp}`);
 
         return {
             code: totp,
             timeStep: timeStep,
             offset: offset,
-            timestamp: currentTime
+            timestamp: timestamp
         };
 
     } catch (error) {
@@ -244,9 +231,9 @@ function generateTOTP(secret, timeOffset = 0) {
     }
 }
 
-// ===== 嘗試多個時間窗 =====
+// ===== 生成多個時間窗的候選碼 =====
 function generateTOTPCandidates(secret) {
-    console.log("🔄 產生多個時間窗的 TOTP...");
+    console.log("🔄 產生多時間窗 TOTP 候選碼...");
 
     const candidates = [];
 
@@ -348,7 +335,17 @@ function performLogin() {
                 }
             } else {
                 console.log(`❌ 登入失敗 - 狀態: ${response.status}`);
-                $notification.post("1Min 登入", "登入失敗", `HTTP ${response.status}`);
+
+                let errorMsg = "登入失敗";
+                if (responseData.message) {
+                    errorMsg = responseData.message;
+                } else if (response.status === 401) {
+                    errorMsg = "帳號或密碼錯誤";
+                } else if (response.status === 429) {
+                    errorMsg = "請求過於頻繁，請稍後再試";
+                }
+
+                $notification.post("1Min 登入", "登入失敗", errorMsg);
                 $done();
             }
         } catch (parseError) {
@@ -383,7 +380,7 @@ function performMFAVerification(tempToken) {
         }
 
         const candidate = totpCandidates[currentIndex];
-        console.log(`🎯 嘗試第 ${currentIndex + 1}/${totpCandidates.length} 個驗證碼: ${candidate.code} (${candidate.description})`);
+        console.log(`🎯 嘗試第 ${currentIndex + 1}/${totpCandidates.length} 個: ${candidate.code} (${candidate.description})`);
 
         const mfaUrl = "https://api.1min.ai/auth/mfa/verify";
         const headers = {
@@ -419,7 +416,7 @@ function performMFAVerification(tempToken) {
                     const responseData = JSON.parse(data || '{}');
 
                     if (response.status === 200) {
-                        console.log(`✅ TOTP 驗證成功！成功的驗證碼: ${candidate.code} (${candidate.description})`);
+                        console.log(`✅ TOTP 驗證成功！使用了: ${candidate.code} (${candidate.description})`);
                         $notification.post("1Min 登入", "成功", `每日登入完成！TOTP: ${candidate.code}`);
                         $done();
                     } else {
@@ -429,13 +426,18 @@ function performMFAVerification(tempToken) {
                             console.log(`📄 錯誤訊息: ${responseData.message}`);
                         }
 
-                        // 如果是無效驗證碼且還有其他候選碼，繼續嘗試
-                        if (response.status === 400 && currentIndex < totpCandidates.length - 1) {
+                        // 如果是驗證碼錯誤且還有其他候選碼，繼續嘗試
+                        if (response.status === 400 &&
+                            responseData.message &&
+                            responseData.message.includes('Invalid MFA code') &&
+                            currentIndex < totpCandidates.length - 1) {
+
                             console.log(`⏭️ 嘗試下一個驗證碼...`);
                             currentIndex++;
                             setTimeout(attemptVerification, 1500); // 等待1.5秒後重試
                         } else {
-                            $notification.post("1Min 登入", "TOTP 失敗", responseData.message || `HTTP ${response.status}`);
+                            let errorMsg = responseData.message || `HTTP ${response.status}`;
+                            $notification.post("1Min 登入", "TOTP 失敗", errorMsg);
                             $done();
                         }
                     }
