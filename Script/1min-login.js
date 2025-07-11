@@ -1,4 +1,4 @@
-// 1min-login.js - 適用於 Surge 的版本（優化日誌輸出）
+// 1min-login-fixed.js - 修正版本（加入時間容錯）
 
 // 從參數中取得設定
 const params = new URLSearchParams($argument);
@@ -16,21 +16,17 @@ if (!email || !password) {
     $done();
 }
 
-// ===== 簡化版 TOTP 產生器 =====
-function generateTOTP(secret) {
+// ===== 修正版 TOTP 產生器（加入時間容錯） =====
+function generateTOTP(secret, timeOffset = 0) {
     if (!secret) {
         console.log("⚠️ 未提供 TOTP 金鑰");
         return null;
     }
 
     try {
-        console.log("🔐 開始產生 TOTP...");
-
         // Base32 解碼
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
         const clean = secret.replace(/\s/g, '').replace(/=+$/, '').toUpperCase();
-
-        console.log(`📏 金鑰長度: ${clean.length}`);
 
         let bits = '';
         for (let i = 0; i < clean.length; i++) {
@@ -48,16 +44,12 @@ function generateTOTP(secret) {
         }
 
         const key = new Uint8Array(bytes);
-        console.log(`🔑 解碼後金鑰長度: ${key.length} bytes`);
 
-        // 計算時間步數
-        const timestamp = Math.floor(Date.now() / 1000);
+        // 計算時間步數（加入偏移）
+        const timestamp = Math.floor(Date.now() / 1000) + timeOffset;
         const timeStep = Math.floor(timestamp / 30);
 
-        console.log(`⏰ 當前時間: ${new Date().toLocaleTimeString()}`);
-        console.log(`📊 時間步數: ${timeStep}`);
-
-        // SHA-1 實作（簡化版）
+        // SHA-1 實作
         function sha1(data) {
             function rotateLeft(n, b) {
                 return (n << b) | (n >>> (32 - b));
@@ -73,8 +65,10 @@ function generateTOTP(secret) {
                 paddedData.push(0);
             }
 
+            // 修正：使用 BigInt 確保正確的長度處理
+            const bitLength = BigInt(msgLength * 8);
             for (let i = 7; i >= 0; i--) {
-                paddedData.push((msgLength * 8 >>> (i * 8)) & 0xff);
+                paddedData.push(Number((bitLength >> BigInt(i * 8)) & 0xffn));
             }
 
             for (let chunk = 0; chunk < paddedData.length; chunk += 64) {
@@ -155,12 +149,12 @@ function generateTOTP(secret) {
             return sha1(opadKey);
         }
 
-        // 建立時間計數器
+        // 修正：使用正確的大端序時間計數器
         const counter = new Uint8Array(8);
-        counter[4] = (timeStep >>> 24) & 0xFF;
-        counter[5] = (timeStep >>> 16) & 0xFF;
-        counter[6] = (timeStep >>> 8) & 0xFF;
-        counter[7] = timeStep & 0xFF;
+        const timeStepBig = BigInt(timeStep);
+        for (let i = 0; i < 8; i++) {
+            counter[7 - i] = Number((timeStepBig >> BigInt(i * 8)) & 0xffn);
+        }
 
         // 計算 HMAC
         const hmac = hmacSha1(key, counter);
@@ -174,15 +168,42 @@ function generateTOTP(secret) {
 
         const totp = String(code % 1000000).padStart(6, '0');
 
-        console.log(`🎯 產生 TOTP: ${totp}`);
-        console.log(`📍 偏移量: ${offset}`);
-
-        return totp;
+        return {
+            code: totp,
+            timeStep: timeStep,
+            offset: offset,
+            timestamp: timestamp
+        };
 
     } catch (error) {
         console.log(`❌ TOTP 錯誤: ${error.message}`);
         return null;
     }
+}
+
+// ===== 嘗試多個時間窗的 TOTP =====
+function generateTOTPWithTolerance(secret) {
+    console.log("🔐 開始產生 TOTP（含時間容錯）...");
+
+    const candidates = [];
+
+    // 嘗試當前時間及前後各 30 秒的時間窗
+    for (let offset = -30; offset <= 30; offset += 30) {
+        const result = generateTOTP(secret, offset);
+        if (result) {
+            const timeDesc = offset === 0 ? '當前' : (offset > 0 ? `+${offset}s` : `${offset}s`);
+            console.log(`⏰ ${timeDesc}: ${result.code} (步數: ${result.timeStep})`);
+
+            candidates.push({
+                code: result.code,
+                offset: offset,
+                timeStep: result.timeStep,
+                description: timeDesc
+            });
+        }
+    }
+
+    return candidates;
 }
 
 // ===== 隨機裝置 ID =====
@@ -283,76 +304,101 @@ function performLogin() {
     });
 }
 
-// 第二步：TOTP 驗證
+// 第二步：TOTP 驗證（支援多次嘗試）
 function performMFAVerification(tempToken) {
     console.log("🔐 開始 TOTP 驗證...");
 
-    const totpCode = generateTOTP(totpSecret);
+    const totpCandidates = generateTOTPWithTolerance(totpSecret);
 
-    if (!totpCode) {
+    if (!totpCandidates || totpCandidates.length === 0) {
         console.log("❌ TOTP 產生失敗");
         $notification.post("1Min 登入", "TOTP 錯誤", "無法產生驗證碼，請檢查金鑰");
         $done();
         return;
     }
 
-    console.log(`🎯 使用驗證碼: ${totpCode}`);
+    // 嘗試第一個候選碼（通常是當前時間）
+    let currentIndex = 0;
 
-    const mfaUrl = "https://api.1min.ai/auth/mfa/verify";
-    const headers = {
-        "Host": "api.1min.ai",
-        "Content-Type": "application/json",
-        "X-Auth-Token": "Bearer",
-        "Mp-Identity": deviceId,
-        "X-App-Version": "1.1.40",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/plain, */*",
-        "Origin": "https://app.1min.ai",
-        "Referer": "https://app.1min.ai/"
-    };
-
-    const body = JSON.stringify({
-        "code": totpCode,
-        "token": tempToken
-    });
-
-    $httpClient.post({
-        url: mfaUrl,
-        headers: headers,
-        body: body
-    }, function(error, response, data) {
-        if (error) {
-            console.log(`❌ TOTP 驗證請求失敗: ${error}`);
-            $notification.post("1Min 登入", "TOTP 網路錯誤", "請檢查網路連線");
-        } else {
-            console.log(`📊 TOTP 驗證回應狀態: ${response.status}`);
-
-            try {
-                const responseData = JSON.parse(data || '{}');
-
-                if (response.status === 200) {
-                    console.log("✅ TOTP 驗證成功，完整登入成功");
-                    $notification.post("1Min 登入", "成功", `每日登入完成 (TOTP: ${totpCode})`);
-                } else {
-                    console.log(`❌ TOTP 驗證失敗 - 狀態: ${response.status}`);
-                    console.log(`📄 錯誤詳情: ${data.substring(0, 200)}...`);
-
-                    let errorMsg = "TOTP 驗證失敗";
-                    if (responseData.message) {
-                        errorMsg = responseData.message;
-                    } else if (response.status === 400) {
-                        errorMsg = "驗證碼錯誤或已過期";
-                    }
-
-                    $notification.post("1Min 登入", "TOTP 失敗", errorMsg);
-                }
-            } catch (parseError) {
-                console.log(`❌ TOTP 回應解析錯誤: ${parseError.message}`);
-                $notification.post("1Min 登入", "TOTP 回應錯誤", "無法解析驗證回應");
-            }
+    function tryTOTPVerification() {
+        if (currentIndex >= totpCandidates.length) {
+            console.log("❌ 所有 TOTP 候選碼都失敗");
+            $notification.post("1Min 登入", "TOTP 失敗", "所有時間窗的驗證碼都被拒絕");
+            $done();
+            return;
         }
-        $done();
-    });
+
+        const candidate = totpCandidates[currentIndex];
+        console.log(`🎯 嘗試驗證碼 ${currentIndex + 1}/${totpCandidates.length}: ${candidate.code} (${candidate.description})`);
+
+        const mfaUrl = "https://api.1min.ai/auth/mfa/verify";
+        const headers = {
+            "Host": "api.1min.ai",
+            "Content-Type": "application/json",
+            "X-Auth-Token": "Bearer",
+            "Mp-Identity": deviceId,
+            "X-App-Version": "1.1.40",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://app.1min.ai",
+            "Referer": "https://app.1min.ai/"
+        };
+
+        const body = JSON.stringify({
+            "code": candidate.code,
+            "token": tempToken
+        });
+
+        $httpClient.post({
+            url: mfaUrl,
+            headers: headers,
+            body: body
+        }, function(error, response, data) {
+            if (error) {
+                console.log(`❌ TOTP 驗證請求失敗: ${error}`);
+                $notification.post("1Min 登入", "TOTP 網路錯誤", "請檢查網路連線");
+                $done();
+            } else {
+                console.log(`📊 TOTP 驗證回應狀態: ${response.status}`);
+
+                try {
+                    const responseData = JSON.parse(data || '{}');
+
+                    if (response.status === 200) {
+                        console.log(`✅ TOTP 驗證成功！使用了 ${candidate.description} 的驗證碼: ${candidate.code}`);
+                        $notification.post("1Min 登入", "成功", `每日登入完成 (TOTP: ${candidate.code})`);
+                        $done();
+                    } else {
+                        console.log(`❌ TOTP 驗證失敗 - 狀態: ${response.status}`);
+                        console.log(`📄 錯誤詳情: ${responseData.message || 'Unknown error'}`);
+
+                        // 如果是無效驗證碼，嘗試下一個候選碼
+                        if (response.status === 400 && responseData.message && responseData.message.includes('Invalid MFA code')) {
+                            console.log(`⏭️ 嘗試下一個驗證碼...`);
+                            currentIndex++;
+                            setTimeout(tryTOTPVerification, 1000); // 等待 1 秒後重試
+                        } else {
+                            // 其他錯誤，停止嘗試
+                            let errorMsg = "TOTP 驗證失敗";
+                            if (responseData.message) {
+                                errorMsg = responseData.message;
+                            }
+
+                            $notification.post("1Min 登入", "TOTP 失敗", errorMsg);
+                            $done();
+                        }
+                    }
+                } catch (parseError) {
+                    console.log(`❌ TOTP 回應解析錯誤: ${parseError.message}`);
+                    $notification.post("1Min 登入", "TOTP 回應錯誤", "無法解析驗證回應");
+                    $done();
+                }
+            }
+        });
+    }
+
+    // 開始第一次嘗試
+    tryTOTPVerification();
 }
 
 // 開始執行
