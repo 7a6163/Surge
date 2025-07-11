@@ -4,7 +4,7 @@
 #!arguments-desc=請填入您的1min.ai帳號和密碼
 
 [Script]
-1min-daily-login = type=cron,cronexp={{{Cron}}},wake-system=1,timeout=30,script-path=https://raw.githubusercontent.com/7a6163/Surge/refs/heads/main/Script/1min-login.js,argument=email={{{帳號}}}&password={{{密碼}}}
+1min-daily-login = type=cron,cronexp={{{Cron}}},wake-system=1,timeout=30,script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/1min-login.js,argument=email={{{帳號}}}&password={{{密碼}}}
 
 [MITM]
 hostname = api.1min.ai
