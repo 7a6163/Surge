@@ -1,5 +1,5 @@
 // 1min.ai 每日自動登入腳本
-// 從參數中獲取帳號密碼
+// 從參數中得到帳號密碼
 const params = new URLSearchParams($argument);
 const email = params.get('email');
 const password = params.get('password');
