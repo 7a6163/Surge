@@ -1,5 +1,26 @@
 // 1min.ai 每日自動登入腳本
 // 從參數中得到帳號密碼
+
+// generate fake device id
+function generateFakeDeviceId() {
+    function randomHex(length) {
+        const chars = '0123456789abcdef';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
+    const part1 = randomHex(15);
+    const part2 = randomHex(15);
+    const part3 = randomHex(8);
+    const part4 = randomHex(6);
+    const part5 = randomHex(15);
+
+    return `${part1}-${part2}-${part3}-${part4}-${part5}`;
+}
+
 const params = new URLSearchParams($argument);
 const email = params.get('email');
 const password = params.get('password');
@@ -17,7 +38,7 @@ if (!email || !password) {
         "Sec-Ch-Ua-Platform": "\"macOS\"",
         "Accept-Language": "en-US,en;q=0.9",
         "Sec-Ch-Ua": "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\"",
-        "Mp-Identity": "$device:197f8012d19258-0fae27400ab0828-17525636-16a7f0-197f8012d19258",
+        "Mp-Identity": "$device:" + generateFakeDeviceId(),
         "Sec-Ch-Ua-Mobile": "?0",
         "X-App-Version": "1.1.40",
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
