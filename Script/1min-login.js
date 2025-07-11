@@ -1,5 +1,5 @@
 // 1min.ai 每日自動登入腳本
-// 從參數中得到帳號密碼
+// 從參數中取得帳號密碼
 
 // generate fake device id
 function generateFakeDeviceId() {
@@ -27,7 +27,7 @@ const password = params.get('password');
 
 if (!email || !password) {
     console.log("錯誤: 缺少帳號或密碼參數");
-    $notification.post("1Min 登入", "配置錯誤", "請檢查帳號密碼設定");
+    $notification.post("1Min 登入", "設定錯誤", "請檢查帳號密碼設定");
     $done();
 } else {
     const url = "https://api.1min.ai/auth/login";
