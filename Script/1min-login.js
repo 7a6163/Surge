@@ -6,13 +6,13 @@ const email = params.get('email');
 const password = params.get('password');
 const totpSecret = params.get('totp');
 
-console.log("🎬 1Min.ai 自動登入開始");
+console.log("🎬 1min.ai 自動登入開始");
 console.log(`📧 帳號: ${email ? email.substring(0, 3) + '***' + email.substring(email.indexOf('@')) : '未設定'}`);
 console.log(`🔐 TOTP: ${totpSecret ? '已設定 (' + totpSecret.length + ' 字元)' : '未設定'}`);
 
 if (!email || !password) {
     console.log("❌ 錯誤: 缺少 email 或 password 參數");
-    $notification.post("1Min 登入", "設定錯誤", "請檢查 email 和 password 參數");
+    $notification.post("1min 登入", "設定錯誤", "請檢查 email 和 password 參數");
     $done();
 }
 
@@ -86,7 +86,7 @@ class LoginManager {
             }, (error, response, data) => {
                 if (error) {
                     console.log(`❌ 登入請求失敗: ${error}`);
-                    $notification.post("1Min 登入", "網路錯誤", "請檢查網路連線");
+                    $notification.post("1min 登入", "網路錯誤", "請檢查網路連線");
                     reject(error);
                     return;
                 }
@@ -106,12 +106,12 @@ class LoginManager {
                                     .catch(reject);
                             } else {
                                 console.log("❌ 需要 TOTP 但未提供金鑰");
-                                $notification.post("1Min 登入", "需要 TOTP", "請在模組參數中新增 totp 金鑰");
+                                $notification.post("1min 登入", "需要 TOTP", "請在模組參數中新增 totp 金鑰");
                                 reject(new Error("Missing TOTP secret"));
                             }
                         } else {
                             console.log("✅ 登入成功（無需 TOTP）");
-                            $notification.post("1Min 登入", "成功", `歡迎 ${responseData.user.email || '用戶'}`);
+                            $notification.post("1min 登入", "成功", `歡迎 ${responseData.user.email || '用戶'}`);
                             resolve(responseData);
                         }
                     } else {
@@ -126,12 +126,12 @@ class LoginManager {
                             errorMsg = "請求過於頻繁，請稍後再試";
                         }
 
-                        $notification.post("1Min 登入", "登入失敗", errorMsg);
+                        $notification.post("1min 登入", "登入失敗", errorMsg);
                         reject(new Error(errorMsg));
                     }
                 } catch (parseError) {
                     console.log(`❌ JSON 解析錯誤: ${parseError.message}`);
-                    $notification.post("1Min 登入", "回應錯誤", "伺服器回應格式異常");
+                    $notification.post("1min 登入", "回應錯誤", "伺服器回應格式異常");
                     reject(parseError);
                 }
             });
@@ -171,7 +171,7 @@ class LoginManager {
             }, (error, response, data) => {
                 if (error) {
                     console.log(`❌ TOTP 驗證請求失敗: ${error}`);
-                    $notification.post("1Min 登入", "TOTP 網路錯誤", error);
+                    $notification.post("1min 登入", "TOTP 網路錯誤", error);
                     reject(error);
                     return;
                 }
@@ -183,7 +183,7 @@ class LoginManager {
 
                     if (response.status === 200) {
                         console.log(`✅ TOTP 驗證成功！驗證碼: ${totpCode}`);
-                        $notification.post("1Min 登入", "成功", `每日登入完成！TOTP: ${totpCode}`);
+                        $notification.post("1min 登入", "成功", `每日登入完成！TOTP: ${totpCode}`);
                         resolve(responseData);
                     } else {
                         console.log(`❌ TOTP 驗證失敗 - 狀態: ${response.status}`);
@@ -191,12 +191,12 @@ class LoginManager {
                         const errorMsg = responseData.message || `HTTP ${response.status}`;
                         console.log(`📄 錯誤訊息: ${errorMsg}`);
 
-                        $notification.post("1Min 登入", "TOTP 失敗", errorMsg);
+                        $notification.post("1min 登入", "TOTP 失敗", errorMsg);
                         reject(new Error(errorMsg));
                     }
                 } catch (parseError) {
                     console.log(`❌ TOTP 回應解析錯誤: ${parseError.message}`);
-                    $notification.post("1Min 登入", "TOTP 回應錯誤", "無法解析驗證回應");
+                    $notification.post("1min 登入", "TOTP 回應錯誤", "無法解析驗證回應");
                     reject(parseError);
                 }
             });
