@@ -5,10 +5,12 @@ const params = new URLSearchParams($argument);
 const email = params.get('email');
 const password = params.get('password');
 const totpSecret = params.get('totp');
+// 過濾無效的 TOTP 值（空字串、null 字串等）
+const validTotpSecret = totpSecret && totpSecret !== 'null' && totpSecret.trim() !== '' ? totpSecret : null;
 
 console.log("🎬 1min.ai 自動登入開始");
 console.log(`📧 帳號: ${email ? email.substring(0, 3) + '***' + email.substring(email.indexOf('@')) : '未設定'}`);
-console.log(`🔐 TOTP: ${totpSecret ? '已設定 (' + totpSecret.length + ' 字元)' : '未設定'}`);
+console.log(`🔐 TOTP: ${validTotpSecret ? '已設定 (' + validTotpSecret.length + ' 字元)' : '未設定'}`);
 
 if (!email || !password) {
     console.log("❌ 錯誤: 缺少 email 或 password 參數");
@@ -205,7 +207,7 @@ class LoginManager {
 }
 
 // ===== 執行登入 =====
-const loginManager = new LoginManager(email, password, totpSecret);
+const loginManager = new LoginManager(email, password, validTotpSecret);
 
 loginManager.performLogin()
     .then(() => {
