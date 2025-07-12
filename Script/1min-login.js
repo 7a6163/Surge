@@ -228,7 +228,9 @@ class LoginManager {
                 console.log(`   可用比例: ${availablePercent}%`);
                 
                 // 顯示通知
-                const userName = user.email ? user.email.split('@')[0] : '用戶';
+                const userName = user.teams && user.teams[0] && user.teams[0].userName ? user.teams[0].userName : (
+                    user.email ? user.email.split('@')[0] : '用戶'
+                );
                 $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(remainingCredit)} (${availablePercent}%)`);
             } else {
                 console.log("⚠️ 無法取得 Credit 資訊");
