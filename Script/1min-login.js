@@ -8,6 +8,7 @@ const totpSecret = params.get('totp');
 // 過濾無效的 TOTP 值（空字串、null 字串等）
 const validTotpSecret = totpSecret && totpSecret !== 'null' && totpSecret.trim() !== '' ? totpSecret : null;
 
+console.log($argument);
 console.log("🎬 1min.ai 自動登入開始");
 console.log(`📧 帳號: ${email ? email.substring(0, 3) + '***' + email.substring(email.indexOf('@')) : '未設定'}`);
 console.log(`🔐 TOTP: ${validTotpSecret ? '已設定 (' + validTotpSecret.length + ' 字元)' : '未設定'}`);
@@ -214,22 +215,22 @@ class LoginManager {
                 const remainingCredit = teamInfo.team.credit || 0;  // API 回傳的是剩餘額度
                 const usedCredit = teamInfo.usedCredit || 0;
                 const totalCredit = remainingCredit + usedCredit;   // 真正的總額度
-                
+
                 // 格式化數字顯示
                 const formatNumber = (num) => {
                     return num.toLocaleString('zh-TW');
                 };
-                
+
                 const availablePercent = totalCredit > 0 ? ((remainingCredit / totalCredit) * 100).toFixed(1) : 0;
-                
+
                 console.log(`💰 Credit 資訊:`);
                 console.log(`   可用額度: ${formatNumber(remainingCredit)}`);
                 console.log(`   已使用: ${formatNumber(usedCredit)}`);
                 console.log(`   可用比例: ${availablePercent}%`);
-                
+
                 // 顯示通知
-                const userName = (user.teams && user.teams[0] && user.teams[0].userName) ? 
-                    user.teams[0].userName : 
+                const userName = (user.teams && user.teams[0] && user.teams[0].userName) ?
+                    user.teams[0].userName :
                     (user.email ? user.email.split('@')[0] : '用戶');
                 $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(remainingCredit)} (${availablePercent}%)`);
             } else {
