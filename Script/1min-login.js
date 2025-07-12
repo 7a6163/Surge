@@ -113,7 +113,7 @@ class LoginManager {
                             }
                         } else {
                             console.log("✅ 登入成功（無需 TOTP）");
-                            $notification.post("1min 登入", "成功", `歡迎 ${responseData.user.email || '用戶'}`);
+                            this.displayCreditInfo(responseData);
                             resolve(responseData);
                         }
                     } else {
@@ -145,7 +145,7 @@ class LoginManager {
         console.log("🔐 開始 TOTP 驗證流程...");
 
         const totpCode = this.totp.genOTP();
-        console.log(`🎯 產生 TOTP: ${totpCode}`);
+        console.log(`🎯 產生 TOTP 驗證碼`);
 
         const mfaUrl = "https://api.1min.ai/auth/mfa/verify";
         const headers = {
@@ -184,8 +184,8 @@ class LoginManager {
                     const responseData = JSON.parse(data || '{}');
 
                     if (response.status === 200) {
-                        console.log(`✅ TOTP 驗證成功！驗證碼: ${totpCode}`);
-                        $notification.post("1min 登入", "成功", `每日登入完成！TOTP: ${totpCode}`);
+                        console.log(`✅ TOTP 驗證成功！`);
+                        this.displayCreditInfo(responseData);
                         resolve(responseData);
                     } else {
                         console.log(`❌ TOTP 驗證失敗 - 狀態: ${response.status}`);
@@ -203,6 +203,41 @@ class LoginManager {
                 }
             });
         });
+    }
+
+    // 顯示 Credit 餘額資訊
+    displayCreditInfo(responseData) {
+        try {
+            const user = responseData.user;
+            if (user && user.teams && user.teams.length > 0) {
+                const teamInfo = user.teams[0];
+                const remainingCredit = teamInfo.team.credit || 0;  // API 回傳的是剩餘額度
+                const usedCredit = teamInfo.usedCredit || 0;
+                const totalCredit = remainingCredit + usedCredit;   // 真正的總額度
+                
+                // 格式化數字顯示
+                const formatNumber = (num) => {
+                    return num.toLocaleString('zh-TW');
+                };
+                
+                const availablePercent = totalCredit > 0 ? ((remainingCredit / totalCredit) * 100).toFixed(1) : 0;
+                
+                console.log(`💰 Credit 資訊:`);
+                console.log(`   可用額度: ${formatNumber(remainingCredit)}`);
+                console.log(`   已使用: ${formatNumber(usedCredit)}`);
+                console.log(`   可用比例: ${availablePercent}%`);
+                
+                // 顯示通知
+                const userName = user.email ? user.email.split('@')[0] : '用戶';
+                $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(remainingCredit)} (${availablePercent}%)`);
+            } else {
+                console.log("⚠️ 無法取得 Credit 資訊");
+                $notification.post("1min 登入", "登入成功", "歡迎回來！");
+            }
+        } catch (error) {
+            console.log(`❌ 顯示 Credit 資訊時發生錯誤: ${error.message}`);
+            $notification.post("1min 登入", "登入成功", "歡迎回來！");
+        }
     }
 }
 
