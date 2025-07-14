@@ -1,5 +1,5 @@
 #!name=1min.ai 自動登入
-#!desc=每日自動登入 1min.ai 帳號（支援可選 TOTP）v20250714
+#!desc=每日自動登入 1min.ai 帳號（支援可選 TOTP）v20250715
 #!arguments=Cron:10 16 * * *,帳號,密碼,TOTP金鑰:null
 #!arguments-desc=請填入您的 1min.ai 帳號、密碼和 TOTP 金鑰。若不使用 TOTP 驗證，請在 TOTP 金鑰欄位輸入 null
 
