@@ -27,7 +27,7 @@ async function loadOTPAuth() {
             const response = await fetch('https://cdn.jsdelivr.net/npm/otpauth@9.4.0/dist/otpauth.umd.min.js');
             const code = await response.text();
             eval(code);
-            // 庫通常會掛載到全局對象上
+
             OTPAuth = this.OTPAuth || window.OTPAuth || global.OTPAuth;
             console.log("✅ OTPAuth 庫加載成功");
         } catch (error) {
