@@ -114,8 +114,7 @@ class LoginManager {
                             }
                         } else {
                             console.log("✅ 登入成功（無需 TOTP）");
-                            this.displayCreditInfo(responseData);
-                            resolve(responseData);
+                            this.displayCreditInfo(responseData).then(() => resolve(responseData));
                         }
                     } else {
                         console.log(`❌ 登入失敗 - 狀態: ${response.status}`);
@@ -196,8 +195,7 @@ class LoginManager {
 
                     if (response.status === 200) {
                         console.log(`✅ TOTP 驗證成功！`);
-                        this.displayCreditInfo(responseData);
-                        resolve(responseData);
+                        this.displayCreditInfo(responseData).then(() => resolve(responseData));
                     } else {
                         console.log(`❌ TOTP 驗證失敗 - 狀態: ${response.status}`);
 
@@ -218,53 +216,58 @@ class LoginManager {
 
     // 顯示 Credit 餘額資訊
     displayCreditInfo(responseData) {
-        try {
-            const user = responseData.user;
-            if (user && user.teams && user.teams.length > 0) {
-                const teamInfo = user.teams[0];
-                const teamId = teamInfo.teamId || teamInfo.team.uuid;
-                const authToken = responseData.token || responseData.user.token;
+        return new Promise((resolve) => {
+            try {
+                const user = responseData.user;
+                if (user && user.teams && user.teams.length > 0) {
+                    const teamInfo = user.teams[0];
+                    const teamId = teamInfo.teamId || teamInfo.team.uuid;
+                    const authToken = responseData.token || responseData.user.token;
 
-                // 格式化數字顯示
-                const formatNumber = (num) => {
-                    return num.toLocaleString('zh-TW');
-                };
+                    // 格式化數字顯示
+                    const formatNumber = (num) => {
+                        return num.toLocaleString('zh-TW');
+                    };
 
-                const userName = (user.teams && user.teams[0] && user.teams[0].userName) ?
-                    user.teams[0].userName :
-                    (user.email ? user.email.split('@')[0] : '用戶');
+                    const userName = (user.teams && user.teams[0] && user.teams[0].userName) ?
+                        user.teams[0].userName :
+                        (user.email ? user.email.split('@')[0] : '用戶');
 
-                // 發送額外的 GET 請求獲取最新 credit 資訊
-                if (teamId && authToken) {
-                    // 傳遞原本的 usedCredit 資訊用於百分比計算
-                    const usedCredit = teamInfo.usedCredit || 0;
-                    this.fetchLatestCredit(teamId, authToken, userName, usedCredit);
+                    // 發送額外的 GET 請求獲取最新 credit 資訊
+                    if (teamId && authToken) {
+                        // 傳遞原本的 usedCredit 資訊用於百分比計算
+                        const usedCredit = teamInfo.usedCredit || 0;
+                        this.fetchLatestCredit(teamId, authToken, userName, usedCredit, resolve);
+                    } else {
+                        // 如果沒有 teamId 或 token，使用原本的邏輯
+                        const remainingCredit = teamInfo.team.credit || 0;
+                        const usedCredit = teamInfo.usedCredit || 0;
+                        const totalCredit = remainingCredit + usedCredit;
+                        const availablePercent = totalCredit > 0 ? ((remainingCredit / totalCredit) * 100).toFixed(1) : 0;
+
+                        console.log(`💰 Credit 資訊:`);
+                        console.log(`   可用額度: ${formatNumber(remainingCredit)}`);
+                        console.log(`   已使用: ${formatNumber(usedCredit)}`);
+                        console.log(`   可用比例: ${availablePercent}%`);
+
+                        $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(remainingCredit)} (${availablePercent}%)`);
+                        resolve();
+                    }
                 } else {
-                    // 如果沒有 teamId 或 token，使用原本的邏輯
-                    const remainingCredit = teamInfo.team.credit || 0;
-                    const usedCredit = teamInfo.usedCredit || 0;
-                    const totalCredit = remainingCredit + usedCredit;
-                    const availablePercent = totalCredit > 0 ? ((remainingCredit / totalCredit) * 100).toFixed(1) : 0;
-
-                    console.log(`💰 Credit 資訊:`);
-                    console.log(`   可用額度: ${formatNumber(remainingCredit)}`);
-                    console.log(`   已使用: ${formatNumber(usedCredit)}`);
-                    console.log(`   可用比例: ${availablePercent}%`);
-
-                    $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(remainingCredit)} (${availablePercent}%)`);
+                    console.log("⚠️ 無法取得 Credit 資訊");
+                    $notification.post("1min 登入", "登入成功", "歡迎回來！");
+                    resolve();
                 }
-            } else {
-                console.log("⚠️ 無法取得 Credit 資訊");
+            } catch (error) {
+                console.log(`❌ 顯示 Credit 資訊時發生錯誤: ${error.message}`);
                 $notification.post("1min 登入", "登入成功", "歡迎回來！");
+                resolve();
             }
-        } catch (error) {
-            console.log(`❌ 顯示 Credit 資訊時發生錯誤: ${error.message}`);
-            $notification.post("1min 登入", "登入成功", "歡迎回來！");
-        }
+        });
     }
 
     // 獲取最新的 Credit 資訊
-    fetchLatestCredit(teamId, authToken, userName, usedCredit) {
+    fetchLatestCredit(teamId, authToken, userName, usedCredit, resolve) {
         console.log(`🔄 獲取最新 Credit 資訊 (Team ID: ${teamId})`);
         console.log(`🔑 使用 Token: ${authToken ? authToken.substring(0, 10) + '...' : 'null'}`);
 
@@ -286,6 +289,7 @@ class LoginManager {
         const timeoutId = setTimeout(() => {
             console.log(`⏰ Credit API 請求超時`);
             $notification.post("1min 登入", "登入成功", `${userName} | API 請求超時`);
+            resolve(); // 超時時也要 resolve
         }, 10000); // 10秒超時
 
         $httpClient.get({
@@ -299,11 +303,12 @@ class LoginManager {
             if (error) {
                 console.log(`❌ 獲取 Credit 資訊失敗: ${error}`);
                 $notification.post("1min 登入", "登入成功", `${userName} | 網路錯誤`);
-
+                resolve(); // 錯誤時也要 resolve
                 return;
             }
 
             console.log(`📊 Credit API 回應狀態: ${response.status}`);
+            console.log(`📄 Credit API 回應內容: ${data ? data.substring(0, 200) : 'null'}`);
 
             try {
                 if (response.status === 200) {
@@ -334,6 +339,8 @@ class LoginManager {
                 console.log(`❌ Credit API 回應解析錯誤: ${parseError.message}`);
                 $notification.post("1min 登入", "登入成功", `${userName} | 解析錯誤`);
             }
+
+            resolve(); // 無論成功或失敗都要 resolve
         });
     }
 }
