@@ -266,82 +266,141 @@ class LoginManager {
         });
     }
 
-    // 獲取最新的 Credit 資訊
+    // 獲取最新的 Credit 資訊並檢查簽到獎勵
     fetchLatestCredit(teamId, authToken, userName, usedCredit, resolve) {
-        console.log(`🔄 獲取最新 Credit 資訊 (Team ID: ${teamId})`);
+        console.log(`🔄 開始 Credit 檢查流程 (Team ID: ${teamId})`);
         console.log(`🔑 使用 Token: ${authToken ? authToken.substring(0, 10) + '...' : 'null'}`);
-
-        const creditUrl = `https://api.1min.ai/teams/${teamId}/credits`;
-        console.log(`🌐 請求 URL: ${creditUrl}`);
 
         const headers = {
             "Host": "api.1min.ai",
             "Content-Type": "application/json",
             "X-Auth-Token": `Bearer ${authToken}`,
-            "Mp-Identity": deviceId,
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
             "Accept": "application/json, text/plain, */*",
             "Origin": "https://app.1min.ai",
             "Referer": "https://app.1min.ai/"
         };
 
-        // 添加超時處理
+        // 步驟 1: 獲取初始 Credit
+        this.getCredits(teamId, authToken, headers, (initialCredit) => {
+            console.log(`💰 初始點數: ${this.formatNumber(initialCredit)}`);
+
+            // 步驟 2: 檢查未讀通知
+            this.checkUnreadNotifications(authToken, headers, () => {
+
+                // 步驟 3: 再次獲取 Credit 檢查是否有變化
+                setTimeout(() => {
+                    this.getCredits(teamId, authToken, headers, (finalCredit) => {
+                        console.log(`💰 最終點數: ${this.formatNumber(finalCredit)}`);
+
+                        const creditDiff = finalCredit - initialCredit;
+                        let notificationMessage = `${userName} | 餘額: ${this.formatNumber(finalCredit)}`;
+
+                        if (creditDiff > 0) {
+                            console.log(`🎉 獲得簽到獎勵: +${this.formatNumber(creditDiff)} 點數`);
+                            notificationMessage += ` (+${this.formatNumber(creditDiff)})`;
+                        } else if (creditDiff === 0) {
+                            console.log(`ℹ️ 今日已簽到或無簽到獎勵`);
+                        } else {
+                            console.log(`⚠️ 點數減少: ${this.formatNumber(creditDiff)}`);
+                        }
+
+                        // 計算百分比
+                        const totalCredit = finalCredit + usedCredit;
+                        const availablePercent = totalCredit > 0 ? ((finalCredit / totalCredit) * 100).toFixed(1) : 0;
+                        notificationMessage += ` (${availablePercent}%)`;
+
+                        $notification.post("1min 登入", "登入成功", notificationMessage);
+                        resolve();
+                    });
+                }, 1000); // 等待 1 秒後再檢查，確保簽到處理完成
+            });
+        });
+    }
+
+    // 獲取 Credit 的通用方法
+    getCredits(teamId, authToken, headers, callback) {
+        const creditUrl = `https://api.1min.ai/teams/${teamId}/credits`;
+        console.log(`🌐 請求 Credit URL: ${creditUrl}`);
+
         const timeoutId = setTimeout(() => {
             console.log(`⏰ Credit API 請求超時`);
-            $notification.post("1min 登入", "登入成功", `${userName} | API 請求超時`);
-            resolve(); // 超時時也要 resolve
-        }, 10000); // 10秒超時
+            callback(0); // 超時時返回 0
+        }, 10000);
 
         $httpClient.get({
             url: creditUrl,
             headers
         }, (error, response, data) => {
-            clearTimeout(timeoutId); // 清除超時計時器
-
-            console.log(`📡 Credit API 回調觸發`);
+            clearTimeout(timeoutId);
 
             if (error) {
-                console.log(`❌ 獲取 Credit 資訊失敗: ${error}`);
-                $notification.post("1min 登入", "登入成功", `${userName} | 網路錯誤`);
-                resolve(); // 錯誤時也要 resolve
+                console.log(`❌ 獲取 Credit 失敗: ${error}`);
+                callback(0);
                 return;
             }
 
-            console.log(`📊 Credit API 回應狀態: ${response.status}`);
-            console.log(`📄 Credit API 回應內容: ${data ? data.substring(0, 200) : 'null'}`);
+            console.log(`📊 Credit API 狀態: ${response.status}`);
 
             try {
                 if (response.status === 200) {
                     const creditData = JSON.parse(data || '{}');
-                    const latestCredit = creditData.credit || 0;
-
-                    // 格式化數字顯示
-                    const formatNumber = (num) => {
-                        return num.toLocaleString('zh-TW');
-                    };
-
-                    // 計算百分比（使用最新的 credit 和原本的 usedCredit）
-                    const totalCredit = latestCredit + usedCredit;
-                    const availablePercent = totalCredit > 0 ? ((latestCredit / totalCredit) * 100).toFixed(1) : 0;
-
-                    console.log(`💰 最新 Credit 資訊:`);
-                    console.log(`   可用額度: ${formatNumber(latestCredit)}`);
-                    console.log(`   已使用: ${formatNumber(usedCredit)}`);
-                    console.log(`   可用比例: ${availablePercent}%`);
-
-                    // 使用最新的 credit 值和百分比顯示通知
-                    $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(latestCredit)} (${availablePercent}%)`);
+                    const credit = creditData.credit || 0;
+                    callback(credit);
                 } else {
-                    console.log(`❌ 獲取 Credit 失敗 - 狀態: ${response.status}`);
-                    $notification.post("1min 登入", "登入成功", `${userName} | HTTP ${response.status}`);
+                    console.log(`❌ Credit API 失敗 - 狀態: ${response.status}`);
+                    callback(0);
                 }
             } catch (parseError) {
-                console.log(`❌ Credit API 回應解析錯誤: ${parseError.message}`);
-                $notification.post("1min 登入", "登入成功", `${userName} | 解析錯誤`);
+                console.log(`❌ Credit API 解析錯誤: ${parseError.message}`);
+                callback(0);
+            }
+        });
+    }
+
+    // 檢查未讀通知
+    checkUnreadNotifications(authToken, headers, callback) {
+        const notificationUrl = "https://api.1min.ai/notifications/unread";
+        console.log(`🔔 檢查未讀通知: ${notificationUrl}`);
+
+        const timeoutId = setTimeout(() => {
+            console.log(`⏰ 通知 API 請求超時`);
+            callback(); // 超時時也要繼續
+        }, 10000);
+
+        $httpClient.get({
+            url: notificationUrl,
+            headers
+        }, (error, response, data) => {
+            clearTimeout(timeoutId);
+
+            if (error) {
+                console.log(`❌ 獲取通知失敗: ${error}`);
+                callback();
+                return;
             }
 
-            resolve(); // 無論成功或失敗都要 resolve
+            console.log(`📊 通知 API 狀態: ${response.status}`);
+
+            try {
+                if (response.status === 200) {
+                    const notificationData = JSON.parse(data || '{}');
+                    console.log(`📬 未讀通知數量: ${notificationData.count || 0}`);
+                    console.log(`📄 通知回應: ${data ? data.substring(0, 200) : 'null'}`);
+                } else {
+                    console.log(`❌ 通知 API 失敗 - 狀態: ${response.status}`);
+                }
+            } catch (parseError) {
+                console.log(`❌ 通知 API 解析錯誤: ${parseError.message}`);
+            }
+
+            callback(); // 無論成功或失敗都要繼續
         });
+    }
+
+    // 格式化數字顯示
+    formatNumber(num) {
+        return num.toLocaleString('zh-TW');
     }
 }
 
