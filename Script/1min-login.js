@@ -42,7 +42,7 @@ async function loadOTPAuth() {
 const generateDeviceId = () => {
     const chars = '0123456789abcdef';
     const randomString = (length) =>
-        Array.from({length}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 
     const part1 = randomString(16);
     const part2 = randomString(15);
@@ -222,27 +222,37 @@ class LoginManager {
             const user = responseData.user;
             if (user && user.teams && user.teams.length > 0) {
                 const teamInfo = user.teams[0];
-                const remainingCredit = teamInfo.team.credit || 0;  // API 回傳的是剩餘額度
-                const usedCredit = teamInfo.usedCredit || 0;
-                const totalCredit = remainingCredit + usedCredit;   // 真正的總額度
+                const teamId = teamInfo.teamId || teamInfo.team.uuid;
+                const authToken = responseData.token || responseData.user.token;
 
                 // 格式化數字顯示
                 const formatNumber = (num) => {
                     return num.toLocaleString('zh-TW');
                 };
 
-                const availablePercent = totalCredit > 0 ? ((remainingCredit / totalCredit) * 100).toFixed(1) : 0;
-
-                console.log(`💰 Credit 資訊:`);
-                console.log(`   可用額度: ${formatNumber(remainingCredit)}`);
-                console.log(`   已使用: ${formatNumber(usedCredit)}`);
-                console.log(`   可用比例: ${availablePercent}%`);
-
-                // 顯示通知
                 const userName = (user.teams && user.teams[0] && user.teams[0].userName) ?
                     user.teams[0].userName :
                     (user.email ? user.email.split('@')[0] : '用戶');
-                $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(remainingCredit)} (${availablePercent}%)`);
+
+                // 發送額外的 GET 請求獲取最新 credit 資訊
+                if (teamId && authToken) {
+                    // 傳遞原本的 usedCredit 資訊用於百分比計算
+                    const usedCredit = teamInfo.usedCredit || 0;
+                    this.fetchLatestCredit(teamId, authToken, userName, usedCredit);
+                } else {
+                    // 如果沒有 teamId 或 token，使用原本的邏輯
+                    const remainingCredit = teamInfo.team.credit || 0;
+                    const usedCredit = teamInfo.usedCredit || 0;
+                    const totalCredit = remainingCredit + usedCredit;
+                    const availablePercent = totalCredit > 0 ? ((remainingCredit / totalCredit) * 100).toFixed(1) : 0;
+
+                    console.log(`💰 Credit 資訊:`);
+                    console.log(`   可用額度: ${formatNumber(remainingCredit)}`);
+                    console.log(`   已使用: ${formatNumber(usedCredit)}`);
+                    console.log(`   可用比例: ${availablePercent}%`);
+
+                    $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(remainingCredit)} (${availablePercent}%)`);
+                }
             } else {
                 console.log("⚠️ 無法取得 Credit 資訊");
                 $notification.post("1min 登入", "登入成功", "歡迎回來！");
@@ -251,6 +261,66 @@ class LoginManager {
             console.log(`❌ 顯示 Credit 資訊時發生錯誤: ${error.message}`);
             $notification.post("1min 登入", "登入成功", "歡迎回來！");
         }
+    }
+
+    // 獲取最新的 Credit 資訊
+    fetchLatestCredit(teamId, authToken, userName, usedCredit) {
+        console.log(`🔄 獲取最新 Credit 資訊 (Team ID: ${teamId})`);
+
+        const creditUrl = `https://api.1min.ai/teams/${teamId}/credits`;
+        const headers = {
+            "Host": "api.1min.ai",
+            "Content-Type": "application/json",
+            "X-Auth-Token": `Bearer ${authToken}`,
+            "Mp-Identity": deviceId,
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://app.1min.ai",
+            "Referer": "https://app.1min.ai/"
+        };
+
+        $httpClient.get({
+            url: creditUrl,
+            headers
+        }, (error, response, data) => {
+            if (error) {
+                console.log(`❌ 獲取 Credit 資訊失敗: ${error}`);
+                $notification.post("1min 登入", "登入成功", `${userName} | 無法獲取餘額資訊`);
+                return;
+            }
+
+            console.log(`📊 Credit API 回應狀態: ${response.status}`);
+
+            try {
+                if (response.status === 200) {
+                    const creditData = JSON.parse(data || '{}');
+                    const latestCredit = creditData.credit || 0;
+
+                    // 格式化數字顯示
+                    const formatNumber = (num) => {
+                        return num.toLocaleString('zh-TW');
+                    };
+
+                    // 計算百分比（使用最新的 credit 和原本的 usedCredit）
+                    const totalCredit = latestCredit + usedCredit;
+                    const availablePercent = totalCredit > 0 ? ((latestCredit / totalCredit) * 100).toFixed(1) : 0;
+
+                    console.log(`💰 最新 Credit 資訊:`);
+                    console.log(`   可用額度: ${formatNumber(latestCredit)}`);
+                    console.log(`   已使用: ${formatNumber(usedCredit)}`);
+                    console.log(`   可用比例: ${availablePercent}%`);
+
+                    // 使用最新的 credit 值和百分比顯示通知
+                    $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(latestCredit)} (${availablePercent}%)`);
+                } else {
+                    console.log(`❌ 獲取 Credit 失敗 - 狀態: ${response.status}`);
+                    $notification.post("1min 登入", "登入成功", `${userName} | 無法獲取餘額資訊`);
+                }
+            } catch (parseError) {
+                console.log(`❌ Credit API 回應解析錯誤: ${parseError.message}`);
+                $notification.post("1min 登入", "登入成功", `${userName} | 餘額資訊解析失敗`);
+            }
+        });
     }
 }
 
