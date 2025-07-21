@@ -299,11 +299,11 @@ class LoginManager {
             if (error) {
                 console.log(`❌ 獲取 Credit 資訊失敗: ${error}`);
                 $notification.post("1min 登入", "登入成功", `${userName} | 網路錯誤`);
+
                 return;
             }
 
             console.log(`📊 Credit API 回應狀態: ${response.status}`);
-            console.log(`📄 Credit API 回應內容: ${data ? data.substring(0, 200) : 'null'}`);
 
             try {
                 if (response.status === 200) {
