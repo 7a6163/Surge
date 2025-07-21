@@ -266,8 +266,11 @@ class LoginManager {
     // 獲取最新的 Credit 資訊
     fetchLatestCredit(teamId, authToken, userName, usedCredit) {
         console.log(`🔄 獲取最新 Credit 資訊 (Team ID: ${teamId})`);
+        console.log(`🔑 使用 Token: ${authToken ? authToken.substring(0, 10) + '...' : 'null'}`);
 
         const creditUrl = `https://api.1min.ai/teams/${teamId}/credits`;
+        console.log(`🌐 請求 URL: ${creditUrl}`);
+
         const headers = {
             "Host": "api.1min.ai",
             "Content-Type": "application/json",
@@ -279,17 +282,28 @@ class LoginManager {
             "Referer": "https://app.1min.ai/"
         };
 
+        // 添加超時處理
+        const timeoutId = setTimeout(() => {
+            console.log(`⏰ Credit API 請求超時`);
+            $notification.post("1min 登入", "登入成功", `${userName} | API 請求超時`);
+        }, 10000); // 10秒超時
+
         $httpClient.get({
             url: creditUrl,
             headers
         }, (error, response, data) => {
+            clearTimeout(timeoutId); // 清除超時計時器
+
+            console.log(`📡 Credit API 回調觸發`);
+
             if (error) {
                 console.log(`❌ 獲取 Credit 資訊失敗: ${error}`);
-                $notification.post("1min 登入", "登入成功", `${userName} | 無法獲取餘額資訊`);
+                $notification.post("1min 登入", "登入成功", `${userName} | 網路錯誤`);
                 return;
             }
 
             console.log(`📊 Credit API 回應狀態: ${response.status}`);
+            console.log(`📄 Credit API 回應內容: ${data ? data.substring(0, 200) : 'null'}`);
 
             try {
                 if (response.status === 200) {
@@ -314,11 +328,11 @@ class LoginManager {
                     $notification.post("1min 登入", "登入成功", `${userName} | 餘額: ${formatNumber(latestCredit)} (${availablePercent}%)`);
                 } else {
                     console.log(`❌ 獲取 Credit 失敗 - 狀態: ${response.status}`);
-                    $notification.post("1min 登入", "登入成功", `${userName} | 無法獲取餘額資訊`);
+                    $notification.post("1min 登入", "登入成功", `${userName} | HTTP ${response.status}`);
                 }
             } catch (parseError) {
                 console.log(`❌ Credit API 回應解析錯誤: ${parseError.message}`);
-                $notification.post("1min 登入", "登入成功", `${userName} | 餘額資訊解析失敗`);
+                $notification.post("1min 登入", "登入成功", `${userName} | 解析錯誤`);
             }
         });
     }
