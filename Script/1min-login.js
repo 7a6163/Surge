@@ -1,5 +1,3 @@
-// 1min-login-simple.js - 簡化版 TOTP 登入
-
 // 從參數中取得設定
 const params = new URLSearchParams($argument);
 const email = params.get('email');
