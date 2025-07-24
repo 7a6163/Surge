@@ -216,7 +216,7 @@ class LoginManager {
         });
     }
 
-    // 顯示 Credit 餘額資訊
+    // 顯示 Credit 點數資訊
     async displayCreditInfo(responseData) {
         try {
             const user = responseData.user;
@@ -242,71 +242,37 @@ class LoginManager {
             }
 
             // 檢查簽到獎勵
-            await this.checkDailyBonus(teamId, authToken, userName, usedCredit, initialCredit);
+            await this.checkDailyBonus(authToken, userName, usedCredit, initialCredit);
         } catch (error) {
             console.log(`❌ 顯示 Credit 資訊時發生錯誤: ${error.message}`);
             $notification.post("1min 登入", "登入成功", "歡迎回來！");
         }
     }
 
-    // 檢查每日簽到獎勵
-    async checkDailyBonus(teamId, authToken, userName, usedCredit, initialCredit) {
+    // 簡化簽到流程 - 直接調用 unread API
+    async checkDailyBonus(authToken, userName, usedCredit, initialCredit) {
         console.log(`🔄 開始簽到檢查`);
 
         const headers = this.buildApiHeaders(authToken);
 
         try {
-            // 1. 呼叫未讀通知 API 觸發簽到獎勵
+            // 直接調用未讀通知 API 觸發簽到獎勵
             await this.apiCheckNotifications(headers);
 
-            // 2. 等待並獲取最新 credit
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const finalCredit = await this.apiGetCredits(teamId, headers);
-            console.log(`💰 最終點數: ${this.formatNumber(finalCredit)}`);
+            // 簡短等待後顯示結果，使用登入時已獲得的點數
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            // 3. 顯示結果
-            const bonus = finalCredit - initialCredit;
-            const percent = this.calculatePercent(finalCredit, usedCredit);
-            this.showCreditNotification(userName, finalCredit, percent, bonus);
+            const percent = this.calculatePercent(initialCredit, usedCredit);
+            this.showCreditNotification(userName, initialCredit, percent);
 
         } catch (error) {
             console.log(`❌ 簽到檢查失敗: ${error.message}`);
-            // 如果簽到檢查失敗，就用初始 credit 顯示
             const percent = this.calculatePercent(initialCredit, usedCredit);
             this.showCreditNotification(userName, initialCredit, percent);
         }
     }
 
-    // API: 獲取 Credit
-    apiGetCredits(teamId, headers) {
-        return new Promise((resolve) => {
-            const url = `https://api.1min.ai/teams/${teamId}/credits`;
-            console.log(`🌐 請求 Credit: ${teamId}`);
 
-            const timeout = setTimeout(() => {
-                console.log(`⏰ Credit API 超時`);
-                resolve(0);
-            }, 10000);
-
-            $httpClient.get({ url, headers }, (error, response, data) => {
-                clearTimeout(timeout);
-
-                if (error || response.status !== 200) {
-                    console.log(`❌ Credit API 失敗: ${error || response.status}`);
-                    resolve(0);
-                    return;
-                }
-
-                try {
-                    const result = JSON.parse(data || '{}');
-                    resolve(result.credit || 0);
-                } catch (e) {
-                    console.log(`❌ Credit API 解析失敗: ${e.message}`);
-                    resolve(0);
-                }
-            });
-        });
-    }
 
     // API: 檢查未讀通知 (觸發簽到獎勵)
     apiCheckNotifications(headers) {
@@ -362,16 +328,8 @@ class LoginManager {
         return total > 0 ? ((remainingCredit / total) * 100).toFixed(1) : 0;
     }
 
-    showCreditNotification(userName, credit, percent, bonus = 0) {
-        let message = `${userName} | 餘額: ${this.formatNumber(credit)} (${percent}%)`;
-
-        if (bonus > 0) {
-            console.log(`🎉 獲得簽到獎勵: +${this.formatNumber(bonus)} 點數`);
-            message += ` (+${this.formatNumber(bonus)})`;
-        } else if (bonus === 0) {
-            console.log(`ℹ️ 今日已簽到或無簽到獎勵`);
-        }
-
+    showCreditNotification(userName, credit, percent) {
+        const message = `${userName} | 點數: ${this.formatNumber(credit)} (${percent}%)`;
         $notification.post("1min 登入", "登入成功", message);
     }
 }
