@@ -286,15 +286,30 @@ class LoginManager {
             // 1. 呼叫未讀通知 API 觸發簽到獎勵
             await this.apiCheckNotifications(headers);
 
-            // 2. 等待並獲取最新 credit
-            await new Promise(resolve => setTimeout(resolve, 10000));
+            // 2. 等待 1 秒並獲取初步 credit
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const firstCredit = await this.apiGetCredits(teamId, headers);
+            console.log(`💰 1秒後點數: ${this.formatNumber(firstCredit)}`);
+
+            const firstBonus = firstCredit - initialCredit;
+            if (firstBonus > 0) {
+                console.log(`🎉 初步獲得簽到獎勵: +${this.formatNumber(firstBonus)} 點數`);
+            }
+
+            // 3. 再等待 30 秒後獲取最終 credit
+            console.log(`⏳ 等待 30 秒後獲取最終點數...`);
+            await new Promise(resolve => setTimeout(resolve, 30000));
             const finalCredit = await this.apiGetCredits(teamId, headers);
             console.log(`💰 最終點數: ${this.formatNumber(finalCredit)}`);
 
-            // 3. 顯示結果
-            const bonus = finalCredit - initialCredit;
+            // 4. 顯示最終結果
+            const totalBonus = finalCredit - initialCredit;
             const percent = this.calculatePercent(finalCredit, usedCredit);
-            this.showCreditNotification(userName, finalCredit, percent, bonus);
+            this.showCreditNotification(userName, finalCredit, percent, totalBonus);
+
+            if (totalBonus !== firstBonus) {
+                console.log(`📈 額外獲得: +${this.formatNumber(totalBonus - firstBonus)} 點數`);
+            }
 
         } catch (error) {
             console.log(`❌ 簽到檢查失敗: ${error.message}`);
