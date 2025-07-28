@@ -287,7 +287,7 @@ class LoginManager {
             await this.apiCheckNotifications(headers);
 
             // 2. 等待並獲取最新 credit
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 10000));
             const finalCredit = await this.apiGetCredits(teamId, headers);
             console.log(`💰 最終點數: ${this.formatNumber(finalCredit)}`);
 
