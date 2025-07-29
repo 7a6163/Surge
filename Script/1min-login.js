@@ -296,9 +296,9 @@ class LoginManager {
                 console.log(`🎉 初步獲得簽到獎勵: +${this.formatNumber(firstBonus)} 點數`);
             }
 
-            // 3. 再等待 30 秒後獲取最終 credit
-            console.log(`⏳ 等待 30 秒後獲取最終點數...`);
-            await new Promise(resolve => setTimeout(resolve, 30000));
+            // 3. 再等待 15 秒後獲取最終 credit
+            console.log(`⏳ 等待 15 秒後獲取最終點數...`);
+            await new Promise(resolve => setTimeout(resolve, 15000));
             const finalCredit = await this.apiGetCredits(teamId, headers);
             console.log(`💰 最終點數: ${this.formatNumber(finalCredit)}`);
 
