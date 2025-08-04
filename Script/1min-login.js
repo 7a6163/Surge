@@ -443,13 +443,42 @@ async function main() {
 
         if (isValid) {
 
+            // 先獲取最新的團隊資訊和點數
+            const headers = loginManager.buildApiHeaders(savedData.token);
+            const userUuid = savedData.userData.uuid;
+
+            // 找到對應的 team
+            let targetTeam = null;
+            for (const team of savedData.userData.teams) {
+                const subscriptionUserId = team.team?.subscription?.userId;
+                if (subscriptionUserId === userUuid) {
+                    targetTeam = team;
+                    break;
+                }
+            }
+
+            if (!targetTeam && savedData.userData.teams.length > 0) {
+                targetTeam = savedData.userData.teams[0];
+            }
+
+            if (targetTeam) {
+                const teamId = targetTeam.teamId || targetTeam.team?.uuid;
+
+                // 獲取最新的點數
+                const currentCredit = await loginManager.apiGetCredits(teamId, headers);
+                if (currentCredit > 0) {
+                    // 更新儲存資料中的點數
+                    targetTeam.team.credit = currentCredit;
+                }
+            }
+
             // 建構完整的 responseData 格式
             const responseData = {
                 user: savedData.userData,
                 token: savedData.token
             };
 
-            // 直接執行簽到流程
+            // 執行簽到流程
             await loginManager.displayCreditInfo(responseData);
             $done();
             return;
