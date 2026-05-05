@@ -1,6 +1,6 @@
 const body = JSON.stringify({
-  company: "Acme Inc.",
-  expiry: 4070908800,
+  company: "Apple Inc.",
+  expiry: 407090880000,
   seats: 100,
 });
 
