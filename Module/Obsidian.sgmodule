@@ -1,5 +1,5 @@
 #!name=Obsidian Business 訂閱偽造
-#!desc=攔截 api.obsidian.md/subscription/business POST 請求並回傳固定 JSON v202605051522
+#!desc=攔截 api.obsidian.md/subscription/business POST 請求並回傳固定 JSON v202605060146
 #!category=Unlock
 
 [Script]
