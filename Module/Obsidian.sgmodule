@@ -1,0 +1,8 @@
+#!name=Obsidian Business 訂閱偽造
+#!desc=攔截 api.obsidian.md/subscription/business POST 請求並回傳固定 JSON
+
+[Script]
+Obsidian-Business = type=http-response, pattern=^https:\/\/api\.obsidian\.md\/subscription\/business$, script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Obsidian-business.js, requires-body=false, timeout=10
+
+[MITM]
+hostname = %APPEND% api.obsidian.md
