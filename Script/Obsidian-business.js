@@ -5,7 +5,9 @@ const body = JSON.stringify({
 });
 
 $done({
-  status: "HTTP/1.1 200 OK",
-  headers: { "Content-Type": "application/json" },
-  body,
+  response: {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+    body,
+  },
 });

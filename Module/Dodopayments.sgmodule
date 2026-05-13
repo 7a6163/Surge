@@ -1,0 +1,9 @@
+#!name=Dodopayments License 啟用偽造
+#!desc=攔截 live.dodopayments.com/licenses/activate POST 請求並直接回傳固定 JSON（不送上游） v202605140001
+#!category=Unlock
+
+[Script]
+Dodopayments-License = type=http-request, pattern=^https:\/\/live\.dodopayments\.com\/licenses\/activate(\?|$), script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Dodopayments-license.js, requires-body=false, timeout=10
+
+[MITM]
+hostname = %APPEND% live.dodopayments.com
