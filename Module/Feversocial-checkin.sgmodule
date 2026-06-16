@@ -1,12 +1,12 @@
 #!name=Feversocial Daily Check-in (Whoscall)
-#!desc=Daily auto check-in for Whoscall monthly sign-in promotions on Feversocial, with monthly auto-discovery and fv_lc auto-capture v202606170001
+#!desc=Daily auto check-in for Whoscall monthly sign-in promotions on Feversocial, with monthly auto-discovery and fv_lc auto-capture v202606170002
 #!category=Automation
 #!arguments=Cron:5 1 * * *,Zines_Page_URL:https://whoscall.feversocial.com/tw/53,fv_lc
 #!arguments-desc=Cron uses UTC. `5 1 * * *` = Taipei 09:05. Zines_Page_URL is the seed (current month sign-in page); the script caches and scans forward each month. fv_lc is OPTIONAL — the grabber script auto-captures it whenever you open Whoscall app. Only fill in for first-time bootstrap.
 
 [Script]
 Feversocial-Checkin = type=cron,cronexp={{{Cron}}},wake-system=1,timeout=60,script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Feversocial-checkin.js?v=v202606170001,argument=zines_url={{{Zines_Page_URL}}}&fv_lc={{{fv_lc}}}
-Feversocial-Cookie-Grabber = type=http-request, pattern=^https:\/\/whoscall\.feversocial\.com\/auth\/client\/token, script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Feversocial-cookie-grabber.js?v=v202606170001, requires-body=false, timeout=5
+Feversocial-Cookie-Grabber = type=http-request, pattern=^https:\/\/whoscall\.feversocial\.com\/, script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Feversocial-cookie-grabber.js?v=v202606170002, requires-body=false, timeout=5
 
 [MITM]
 hostname = %APPEND% whoscall.feversocial.com, api.feversocial.com
