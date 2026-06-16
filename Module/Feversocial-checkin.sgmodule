@@ -1,0 +1,11 @@
+#!name=Feversocial Daily Check-in (Whoscall)
+#!desc=Daily auto check-in for Whoscall monthly sign-in promotions on Feversocial, with auto-discovery of next month via page-id scan v202606160001
+#!category=Automation
+#!arguments=Cron:5 1 * * *,Zines_Page_URL:https://whoscall.feversocial.com/tw/53,fv_lc
+#!arguments-desc=Cron uses UTC. `5 1 * * *` = Taipei 09:05. Zines_Page_URL is the seed (current month sign-in page); the script caches and scans forward each month. fv_lc is the long-lived JWT cookie from Whoscall app webview.
+
+[Script]
+Feversocial-Checkin = type=cron,cronexp={{{Cron}}},wake-system=1,timeout=60,script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Feversocial-checkin.js?v=v202606160001,argument=zines_url={{{Zines_Page_URL}}}&fv_lc={{{fv_lc}}}
+
+[MITM]
+hostname = %APPEND% whoscall.feversocial.com, api.feversocial.com
