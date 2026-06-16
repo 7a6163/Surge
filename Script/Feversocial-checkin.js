@@ -16,7 +16,9 @@
 
 const params = new URLSearchParams($argument);
 const zinesUrl = params.get('zines_url');
-const fvLc = params.get('fv_lc');
+// fv_lc 優先讀 grabber 寫入的快取，fallback 用 Surge 參數（首次設定用）
+const CACHE_FV_LC = 'fs_checkin_fv_lc';
+const fvLc = $persistentStore.read(CACHE_FV_LC) || params.get('fv_lc');
 
 const NOTI_TITLE = 'Whoscall 每日簽到';
 const APP_ID = 'nC5GnijM6mK03FX1QSceqJ6S5tjmnwfv';
