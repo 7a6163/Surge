@@ -16,11 +16,7 @@ if (match && match[1]) {
     if (cached !== fvLc) {
         $persistentStore.write(fvLc, CACHE_FV_LC);
         console.log('🔑 Feversocial: captured fresh fv_lc');
-        $notification.post(
-            'Whoscall 每日簽到',
-            'fv_lc 已更新',
-            `長度 ${fvLc.length}，cron 會用最新 token 簽到`
-        );
+        $notification.post('Whoscall 每日簽到', '已獲取簽到 Token', '');
     }
 }
 
