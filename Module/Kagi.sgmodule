@@ -1,0 +1,11 @@
+#!name=Ecosia → Kagi
+#!desc=Redirect Safari Ecosia searches to Kagi v202609230000
+#!category=Utility
+#!arguments=Token
+#!arguments-desc=Kagi Session Link token (kagi.com/settings → Account → Session Link)
+
+[URL Rewrite]
+^https:\/\/www\.ecosia\.org\/search\?(?:.*&)?q=([^&]*).* https://kagi.com/search?token={{{Token}}}&q=$1 307
+
+[MITM]
+hostname = %APPEND% www.ecosia.org
