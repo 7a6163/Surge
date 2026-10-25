@@ -1,7 +1,7 @@
 // 1min.ai 每日簽到
 // 登入需要騰訊驗證碼，所以腳本不登入：
 // - http-request 模式：從經過 Surge 的 app.1min.ai 請求擷取 token 與 team ID
-// - cron 模式：token 剩不到 2 天時以「重設為同一組密碼」換發新 token，再觸發每日獎勵
+// - cron 模式：token 剩不到 2 天時，有填密碼就以「重設為同一組密碼」換發新 token，沒填就提醒重新登入；再觸發每日獎勵
 
 const TOKEN_KEY = '1min_jwt';
 const TEAM_KEY = '1min_team_id';
@@ -95,7 +95,6 @@ function api(method, path, token, body) {
 }
 
 async function renew(token, password) {
-    if (!password) throw new Error('token 即將到期，但模組未填密碼，無法自動換發');
     const { status, json } = await api('post', '/auth/passwords', token, {
         current_password: password,
         new_password: password,
@@ -128,8 +127,12 @@ async function checkin(password) {
 
     let renewed = '';
     if (payload.exp * 1000 - Date.now() < RENEW_BEFORE_MS) {
-        token = await renew(token, password);
-        renewed = `\ntoken 已換發，有效至 ${new Date(jwtPayload(token).exp * 1000).toLocaleString('zh-TW')}`;
+        if (password) {
+            token = await renew(token, password);
+            renewed = `\ntoken 已換發，有效至 ${new Date(jwtPayload(token).exp * 1000).toLocaleString('zh-TW')}`;
+        } else {
+            renewed = `\ntoken 將於 ${new Date(payload.exp * 1000).toLocaleString('zh-TW')} 到期。${LOGIN_HINT}`;
+        }
     }
 
     const startedAt = Date.now();
@@ -166,7 +169,9 @@ async function checkin(password) {
 if (typeof $request !== 'undefined') {
     capture();
 } else {
-    const password = new URLSearchParams($argument || '').get('password');
+    const raw = new URLSearchParams($argument || '').get('password');
+    // 未填時模組帶入預設值 null
+    const password = raw && raw !== 'null' ? raw : null;
     checkin(password)
         .then((message) => {
             console.log(message);
