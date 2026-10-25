@@ -1,12 +1,12 @@
 #!name=1min.ai 自動簽到
-#!desc=每日自動領取 1min.ai 免費點數。登入需要驗證碼，請先用經過 Surge 的瀏覽器登入 app.1min.ai，模組會自動擷取 token；token 效期 7 天：有填密碼會在到期前 2 天自動換發（換發時瀏覽器會被登出）；沒填密碼則每 7 天需重新登入一次。v202610260223
+#!desc=每日自動領取 1min.ai 免費點數。登入需要驗證碼，請先用經過 Surge 的瀏覽器登入 app.1min.ai，模組會自動擷取 token；token 效期 7 天：有填密碼會在到期前 2 天自動換發（換發時瀏覽器會被登出）；沒填密碼則每 7 天需重新登入一次。v202610260224
 #!category=Automation
 #!arguments=Cron:10 16 * * *,密碼:null
 #!arguments-desc=密碼為選填，用於自動換發 token（將密碼重設為同一組，不會更改密碼）。不使用請保留 null。
 
 [Script]
-1min-daily-login = type=cron,cronexp={{{Cron}}},wake-system=1,timeout=60,script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/1min-login.js?v=v202610260223,argument=password={{{密碼}}}
-1min-token-capture = type=http-request,pattern=^https:\/\/api\.1min\.ai\/,requires-body=0,script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/1min-login.js?v=v202610260223
+1min-daily-login = type=cron,cronexp={{{Cron}}},wake-system=1,timeout=60,script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/1min-login.js?v=v202610260224,argument=password={{{密碼}}}
+1min-token-capture = type=http-request,pattern=^https:\/\/api\.1min\.ai\/,requires-body=0,script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/1min-login.js?v=v202610260224
 
 [MITM]
 hostname = %APPEND% api.1min.ai

@@ -48,6 +48,7 @@ function capture() {
     if (team && $persistentStore.read(TEAM_KEY) !== team[1]) {
         $persistentStore.write(team[1], TEAM_KEY);
         console.log(`已記錄 team ID: ${team[1]}`);
+        $notification.post(TITLE, '已取得 team ID', team[1]);
     }
 
     if (payload) {
