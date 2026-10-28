@@ -1,0 +1,12 @@
+#!name=Yab Invites Boost
+#!desc=Override /api/invites endpoints for unlock v202610290011
+#!category=Unlock
+#!arguments=Color:coral
+#!arguments-desc=Color: Best Friend (Alice) 的顏色，可選 mint、lilac、sky、rose、coral、lemon、indigo
+
+[Script]
+Yab-Invites-Status = type=http-response, pattern=^https:\/\/yetanotherbrowser\.com\/api\/invites\/status(\?|$), script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Yab-invites.js?v=202610290007, requires-body=true, timeout=10, argument={{{Color}}}
+Yab-Invites-Here = type=http-request, pattern=^https:\/\/yetanotherbrowser\.com\/api\/invites\/here(\?|$), script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Yab-invites-here.js?v=202610290007, requires-body=false, timeout=10
+
+[MITM]
+hostname = %APPEND% yetanotherbrowser.com
