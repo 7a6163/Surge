@@ -3,7 +3,7 @@ const nameList = ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Han
 
 const friends = nameList.map((name, i) => ({
   id: "joined-" + i,
-  state: "opened",
+  state: "joined",
   name,
   best: i === 0,
 }));
@@ -12,21 +12,21 @@ const body = {
   posts: [
     {
       reward: "opal",
-      state: "live",
+      state: "confirmed",
       posted: "2026-09-01T00:00:00.000Z",
       url: "https://x.com/u/status/1",
       opens: "2026-09-02T00:00:00.000Z",
     },
     {
       reward: "chrome",
-      state: "live",
+      state: "confirmed",
       posted: "2026-09-15T00:00:00.000Z",
       url: "https://x.com/u/status/2",
       opens: "2026-09-16T00:00:00.000Z",
     },
     {
       reward: "amber",
-      state: "live",
+      state: "confirmed",
       posted: "2026-10-01T00:00:00.000Z",
       url: "https://x.com/u/status/3",
       opens: "2026-10-02T00:00:00.000Z",
@@ -35,7 +35,7 @@ const body = {
   friends,
   joined: 10,
   postAfter: "2025-01-01T00:00:00",
-  left: 5,
+  left: 0,
   best: {
     name: friends[0].name,
     color,
