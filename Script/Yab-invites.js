@@ -17,7 +17,7 @@ const body = {
   friends,
   joined: 10,
   postAfter: "2025-01-01T00:00:00",
-  left: 0,
+  left: 5,
   best: {
     name: friends[0].name,
     color,
