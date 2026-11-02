@@ -137,9 +137,10 @@ async function checkin(password) {
     }
 
     const startedAt = Date.now();
-    // 呼叫未讀通知 API 會觸發每日獎勵，幾秒後才出現在點數紀錄
     const unread = await api('get', '/notifications/unread', token);
     if (unread.status !== 200) throw new Error(`簽到請求失敗: HTTP ${unread.status}`);
+    // 讀取點數才會觸發每日獎勵（回傳的是入帳前餘額），幾秒後才出現在點數紀錄
+    await getCredits(teamId, token);
 
     let readOnce = false;
     let latest = null;
