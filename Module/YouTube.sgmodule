@@ -1,0 +1,40 @@
+#!name=YouTube Plus
+#!desc=YouTube 廣告阻擋、Shorts 過濾、PiP 背景播放、雙語字幕 v202611060001
+#!category=Multimedia
+#!arguments=blockUpload:true,blockImmersive:true,blockShorts:true,subsTabOnly:true,debug:false,Type:Translate,AutoCC:false,ShowOnly:false,Position:Forward
+#!arguments-desc=blockUpload: 封鎖上傳類推薦 [true/false]\nblockImmersive: 封鎖沉浸式音樂推薦 [true/false]\nblockShorts: 封鎖 Shorts [true/false]\nsubsTabOnly: 首頁直接開訂閱頁 [true/false]\ndebug: 除錯日誌 [true/false]\nType: 字幕類型 [Official/Translate]\nAutoCC: 自動顯示翻譯字幕 [true/false]\nShowOnly: 只顯示翻譯字幕 [true/false]\nPosition: 原文字幕位置 [Forward/Reverse]
+
+[URL Rewrite]
+^https?:\/\/[\w-]+\.googlevideo\.com\/(?!dclk_video_ads).+?&ctier=L(&.+?),ctier,(.+) https://$1$2 302
+
+[Map Local]
+^https?:\/\/[\w-]+\.googlevideo\.com\/(?!(dclk_video_ads|videoplayback\?)).+&oad data-type=text data=" " status-code=200
+^https?:\/\/(www|s)\.youtube\.com\/api\/stats\/ads data-type=text data=" " status-code=200
+^https?:\/\/(www|s)\.youtube\.com\/(pagead|ptracking) data-type=text data=" " status-code=200
+^https?:\/\/s\.youtube\.com\/api\/stats\/qoe\?adcontext data-type=text data=" " status-code=200
+
+[Script]
+youtube.response = type=http-response, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(browse|next|player|search|reel\/reel_watch_sequence|guide|account\/get_setting|get_watch), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube.response.js, requires-body=true, binary-body-mode=true, max-size=-1, timeout=60, argument=blockUpload={{{blockUpload}}}&blockImmersive={{{blockImmersive}}}&blockShorts={{{blockShorts}}}&subsTabOnly={{{subsTabOnly}}}&debug={{{debug}}}
+
+youtube.request = type=http-request, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/browse(\?|$), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube.request.js, requires-body=true, binary-body-mode=true, max-size=-1, timeout=10, argument=subsTabOnly={{{subsTabOnly}}}&debug={{{debug}}}
+
+yt-subs-req-player-json = type=http-request, pattern=^https?:\/\/(www|m|tv)\.youtube\.com\/youtubei\/v1\/player\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-request.js, requires-body=true, max-size=-1, timeout=10, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+yt-subs-res-player-json = type=http-response, pattern=^https?:\/\/(www|m|tv)\.youtube\.com\/youtubei\/v1\/player\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-response.js, requires-body=true, max-size=-1, timeout=30, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+
+yt-subs-req-player-proto = type=http-request, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/player\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-request.js, requires-body=true, max-size=-1, binary-body-mode=true, timeout=10, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+yt-subs-res-player-proto = type=http-response, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/player\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-response.js, requires-body=true, max-size=-1, binary-body-mode=true, timeout=30, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+
+yt-subs-res-getwatch-proto = type=http-response, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/get_watch\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-response.js, requires-body=true, max-size=-1, binary-body-mode=true, timeout=30, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+
+yt-subs-req-timedtext = type=http-request, pattern=^https?:\/\/(www|m)\.youtube\.com\/api\/timedtext\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-request.js, requires-body=false, timeout=10, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+yt-subs-res-timedtext-composite = type=http-response, pattern=^https?:\/\/(www|m)\.youtube\.com\/api\/timedtext\?(.*)subtype=(Official|External), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-composite-response.js, requires-body=true, max-size=-1, timeout=30, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+yt-subs-res-timedtext-translate = type=http-response, pattern=^https?:\/\/(www|m)\.youtube\.com\/api\/timedtext\?(.*)subtype=Translate, script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-translate-response.js, requires-body=true, max-size=-1, timeout=30, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+
+yt-subs-req-music-browse-json = type=http-request, pattern=^https?:\/\/music\.youtube\.com\/youtubei\/v1\/browse\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-request.js, requires-body=true, max-size=-1, timeout=10, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+yt-subs-res-music-browse-json = type=http-response, pattern=^https?:\/\/music\.youtube\.com\/youtubei\/v1\/browse\?(.*)subtype=Translate, script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-translate-response.js, requires-body=true, max-size=-1, timeout=30, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+
+yt-subs-req-music-browse-proto = type=http-request, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/browse\?(.*), script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-request.js, requires-body=true, max-size=-1, binary-body-mode=true, timeout=10, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+yt-subs-res-music-browse-proto = type=http-response, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/browse\?(.*)subtype=Translate, script-path=https://raw.githubusercontent.com/gogrhw/surge/main/Scripts/youtube-subtitles-translate-response.js, requires-body=true, max-size=-1, binary-body-mode=true, timeout=30, argument=Type={{{Type}}}&AutoCC={{{AutoCC}}}&ShowOnly={{{ShowOnly}}}&Position={{{Position}}}
+
+[MITM]
+hostname = %APPEND% *.googlevideo.com, www.youtube.com, m.youtube.com, tv.youtube.com, s.youtube.com, music.youtube.com, youtubei.googleapis.com
