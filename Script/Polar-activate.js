@@ -34,4 +34,8 @@ const body = {
   },
 };
 
-$done({ body: JSON.stringify(body) });
+$done({
+  status: 200,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
