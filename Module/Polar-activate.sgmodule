@@ -3,7 +3,7 @@
 #!category=Unlock
 
 [Script]
-Polar-Activate = type=http-response, pattern=^https:\/\/api\.polar\.sh\/v1\/customer-portal\/license-keys\/activate(\?|$), script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Polar-activate.js?v=202611190002, requires-body=true, timeout=10
+Polar-Activate = type=http-response, pattern=^https:\/\/api\.polar\.sh\/v1\/customer-portal\/license-keys\/activate(\?|$), script-path=https://raw.githubusercontent.com/7a6163/Surge/main/Script/Polar-activate.js?v=202611190003, requires-body=true, timeout=10
 
 [MITM]
 hostname = %APPEND% api.polar.sh
