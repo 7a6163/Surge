@@ -1,9 +1,8 @@
 const req = JSON.parse($request.body || "{}");
 const now = new Date().toISOString();
-const id = "a0b1c2d3-e4f5-6789-abcd-ef0123456789";
 
-const body = JSON.stringify({
-  id: id,
+const body = {
+  id: "a0b1c2d3-e4f5-6789-abcd-ef0123456789",
   license_key_id: "b1c2d3e4-f5a6-7890-bcde-f01234567890",
   label: req.label || "Activated",
   meta: {},
@@ -33,12 +32,6 @@ const body = JSON.stringify({
     last_validated_at: null,
     expires_at: null,
   },
-});
+};
 
-$done({
-  response: {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-    body,
-  },
-});
+$done({ body: JSON.stringify(body) });
